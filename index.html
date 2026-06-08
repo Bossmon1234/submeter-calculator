@@ -69,7 +69,6 @@ button {
 <button onclick="openTab('segundina')">Segundina History</button>
 </div>
 
-<!-- CALCULATOR -->
 <div id="calc" class="tab active">
 
 <h3>Main Bill</h3>
@@ -85,32 +84,58 @@ button {
 <div id="output"></div>
 </div>
 
-<!-- MELISSA -->
 <div id="melissa" class="tab">
 <h3>Melissa Monthly History</h3>
 <div id="melissaHistory"></div>
 </div>
 
-<!-- SEGUNDINA -->
 <div id="segundina" class="tab">
-<h3>Segundina Monthly History</h3>
+<h3>Segundina History</h3>
 <div id="segundinaHistory"></div>
 </div>
 
 </div>
 
 <script>
-const PIN = "120402";
-
-let melissaData = JSON.parse(localStorage.getItem("melissa")) || [];
-let segundinaData = JSON.parse(localStorage.getItem("segundina")) || [];
-
 function openTab(tab) {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.getElementById(tab).classList.add("active");
 }
+</script>
 
-function calculate() {
+<!-- 🔥 FIREBASE FULL FIX -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    getDocs 
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCQXv0_MS3aSt0eAVjF7K0197eCrigb0is",
+    authDomain: "sub-meter-calculator-6875f.firebaseapp.com",
+    projectId: "sub-meter-calculator-6875f",
+    storageBucket: "sub-meter-calculator-6875f.appspot.com",
+    messagingSenderId: "1096909978301",
+    appId: "1:1096909978301:web:41195a8b49133cadba15d4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let melissaData = [];
+let segundinaData = [];
+
+// 🔥 SAVE DATA
+window.saveHistory = async function(data) {
+    await addDoc(collection(db, "history"), data);
+};
+
+// 🔥 CALCULATE
+window.calculate = async function() {
+
     let totalKWH = parseFloat(document.getElementById("totalKWH").value);
     let totalAmount = parseFloat(document.getElementById("totalAmount").value);
     let oldM = parseFloat(document.getElementById("oldM").value);
@@ -126,22 +151,7 @@ function calculate() {
     let segKWH = totalKWH - melissaKWH;
     let segCost = totalAmount - melissaCost;
 
-    melissaData.push({ date, kwh: melissaKWH, cost: melissaCost });
-    segundinaData.push({ date, kwh: segKWH, cost: segCost });
-
-    localStorage.setItem("melissa", JSON.stringify(melissaData));
-    localStorage.setItem("segundina", JSON.stringify(segundinaData));
-
-    document.getElementById("output").innerHTML = `
-        <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
-        <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
-        <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
-    `;
-
-    renderHistory();
-
-    // ✅ SAVE TO FIREBASE
-    saveHistory({
+    await saveHistory({
         date,
         pricePerKWH,
         melissaKWH,
@@ -149,80 +159,51 @@ function calculate() {
         segKWH,
         segCost
     });
-}
 
-// DELETE
-function deleteRecord(type, index) {
-    let pin = prompt("Enter PIN to delete:");
+    document.getElementById("output").innerHTML = `
+        <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
+        <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
+        <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
+    `;
 
-    if (pin !== PIN) {
-        alert("Wrong PIN!");
-        return;
-    }
+    loadHistory();
+};
 
-    if (type === "melissa") {
-        melissaData.splice(index, 1);
-        localStorage.setItem("melissa", JSON.stringify(melissaData));
-    } else {
-        segundinaData.splice(index, 1);
-        localStorage.setItem("segundina", JSON.stringify(segundinaData));
-    }
+// 🔥 LOAD DATA (THIS FIXES PHONE/LAPTOP SYNC)
+window.loadHistory = async function() {
 
-    renderHistory();
-}
+    const snapshot = await getDocs(collection(db, "history"));
 
-// HISTORY DISPLAY
-function renderHistory() {
+    melissaData = [];
+    segundinaData = [];
+
+    snapshot.forEach(doc => {
+        const d = doc.data();
+
+        melissaData.push(d);
+        segundinaData.push(d);
+    });
+
     document.getElementById("melissaHistory").innerHTML =
-        melissaData.map((d, i) => `
+        melissaData.map(d => `
             <div class="record">
                 📅 ${d.date}<br>
-                ⚡ ${d.kwh.toFixed(2)} kWh<br>
-                💰 ₱${d.cost.toFixed(2)}<br>
-                <button onclick="deleteRecord('melissa', ${i})">Delete</button>
+                ⚡ ${d.melissaKWH} kWh<br>
+                💰 ₱${d.melissaCost}
             </div>
         `).join("");
 
     document.getElementById("segundinaHistory").innerHTML =
-        segundinaData.map((d, i) => `
+        segundinaData.map(d => `
             <div class="record">
                 📅 ${d.date}<br>
-                ⚡ ${d.kwh.toFixed(2)} kWh<br>
-                💰 ₱${d.cost.toFixed(2)}<br>
-                <button onclick="deleteRecord('segundina', ${i})">Delete</button>
+                ⚡ ${d.segKWH} kWh<br>
+                💰 ₱${d.segCost}
             </div>
         `).join("");
-}
-
-renderHistory();
-</script>
-
-<!-- 🔥 FIREBASE (CLEAN SEPARATE SCRIPT) -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyCQXv0_MS3aSt0eAVjF7K0197eCrigb0is",
-    authDomain: "sub-meter-calculator-6875f.firebaseapp.com",
-    projectId: "sub-meter-calculator-6875f",
-    storageBucket: "sub-meter-calculator-6875f.appspot.com",
-    messagingSenderId: "1096909978301",
-    appId: "1:1096909978301:web:41195a8b49133cadba15d4"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// make function global
-window.saveHistory = async function(data) {
-    try {
-        await addDoc(collection(db, "history"), data);
-        console.log("Saved to Firebase!");
-    } catch (e) {
-        console.error("Firebase error:", e);
-    }
-};
+loadHistory();
 </script>
 
 </body>
