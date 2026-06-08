@@ -1,116 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Sub Meter Billing System</title>
-
-<style>
-body {
-    font-family: Arial;
-    background: #f4f4f4;
-    padding: 20px;
-}
-
-.container {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    max-width: 750px;
-    margin: auto;
-}
-
-input {
-    width: 100%;
-    padding: 8px;
-    margin: 5px 0 10px;
-}
-
-button {
-    width: 100%;
-    padding: 10px;
-    background: green;
-    color: white;
-    border: none;
-    margin-top: 5px;
-    cursor: pointer;
-}
-
-.tabs button {
-    width: 33%;
-    background: #333;
-}
-
-.tab {
-    display: none;
-    margin-top: 15px;
-}
-
-.active {
-    display: block;
-}
-
-.record {
-    background: #e8f5e9;
-    padding: 8px;
-    margin: 5px 0;
-    border-radius: 5px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-<h2>Sub Meter Billing System</h2>
-
-<div class="tabs">
-<button onclick="openTab('calc')">Calculator</button>
-<button onclick="openTab('melissa')">Melissa History</button>
-<button onclick="openTab('segundina')">Segundina History</button>
-</div>
-
-<div id="calc" class="tab active">
-
-<h3>Main Bill</h3>
-<input id="totalKWH" type="number" placeholder="Total KWH Used">
-<input id="totalAmount" type="number" placeholder="Total Amount Due">
-
-<h3>Sub-meter Record</h3>
-<input id="oldM" type="number" placeholder="Old Meter">
-<input id="newM" type="number" placeholder="New Meter">
-
-<button onclick="calculate()">Calculate & Save</button>
-
-<div id="output"></div>
-</div>
-
-<div id="melissa" class="tab">
-<h3>Melissa Monthly History</h3>
-<div id="melissaHistory"></div>
-</div>
-
-<div id="segundina" class="tab">
-<h3>Segundina History</h3>
-<div id="segundinaHistory"></div>
-</div>
-
-</div>
-
-<script>
-function openTab(tab) {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.getElementById(tab).classList.add("active");
-}
-</script>
-
-<!-- 🔥 FIREBASE FULL FIX -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getFirestore, 
     collection, 
     addDoc, 
-    getDocs 
+    getDocs,
+    deleteDoc,
+    doc,
+    query,
+    where
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -125,15 +23,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let melissaData = [];
-let segundinaData = [];
-
-// 🔥 SAVE DATA
+// ========================
+// SAVE HISTORY (WITH MONTH LIMIT)
+// ========================
 window.saveHistory = async function(data) {
-    await addDoc(collection(db, "history"), data);
+
+    // get month key (YYYY-MM)
+    const monthKey = new Date().toISOString().slice(0, 7);
+
+    // check if already exists
+    const q = query(collection(db, "history"), where("monthKey", "==", monthKey));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+        alert("You already have a record for this month!");
+        return;
+    }
+
+    await addDoc(collection(db, "history"), {
+        ...data,
+        monthKey
+    });
 };
 
-// 🔥 CALCULATE
+// ========================
+// CALCULATE
+// ========================
 window.calculate = async function() {
 
     let totalKWH = parseFloat(document.getElementById("totalKWH").value);
@@ -142,6 +57,7 @@ window.calculate = async function() {
     let newM = parseFloat(document.getElementById("newM").value);
 
     let date = new Date().toLocaleDateString();
+    let monthKey = new Date().toISOString().slice(0, 7);
 
     let pricePerKWH = totalAmount / totalKWH;
 
@@ -151,8 +67,9 @@ window.calculate = async function() {
     let segKWH = totalKWH - melissaKWH;
     let segCost = totalAmount - melissaCost;
 
-    await saveHistory({
+    await addDoc(collection(db, "history"), {
         date,
+        monthKey,
         pricePerKWH,
         melissaKWH,
         melissaCost,
@@ -169,42 +86,50 @@ window.calculate = async function() {
     loadHistory();
 };
 
-// 🔥 LOAD DATA (THIS FIXES PHONE/LAPTOP SYNC)
+// ========================
+// DELETE (UNDO)
+// ========================
+window.deleteRecord = async function(id) {
+    await deleteDoc(doc(db, "history", id));
+    loadHistory();
+};
+
+// ========================
+// LOAD HISTORY
+// ========================
 window.loadHistory = async function() {
 
     const snapshot = await getDocs(collection(db, "history"));
 
-    melissaData = [];
-    segundinaData = [];
+    let melissaHTML = "";
+    let segundinaHTML = "";
 
-    snapshot.forEach(doc => {
-        const d = doc.data();
+    snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        const id = docSnap.id;
 
-        melissaData.push(d);
-        segundinaData.push(d);
-    });
-
-    document.getElementById("melissaHistory").innerHTML =
-        melissaData.map(d => `
+        melissaHTML += `
             <div class="record">
                 📅 ${d.date}<br>
                 ⚡ ${d.melissaKWH} kWh<br>
-                💰 ₱${d.melissaCost}
+                💰 ₱${d.melissaCost}<br>
+                <button onclick="deleteRecord('${id}')" style="background:red;">Undo</button>
             </div>
-        `).join("");
+        `;
 
-    document.getElementById("segundinaHistory").innerHTML =
-        segundinaData.map(d => `
+        segundinaHTML += `
             <div class="record">
                 📅 ${d.date}<br>
                 ⚡ ${d.segKWH} kWh<br>
-                💰 ₱${d.segCost}
+                💰 ₱${d.segCost}<br>
+                <button onclick="deleteRecord('${id}')" style="background:red;">Undo</button>
             </div>
-        `).join("");
+        `;
+    });
+
+    document.getElementById("melissaHistory").innerHTML = melissaHTML;
+    document.getElementById("segundinaHistory").innerHTML = segundinaHTML;
 };
 
 loadHistory();
 </script>
-
-</body>
-</html>
