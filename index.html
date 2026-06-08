@@ -179,10 +179,11 @@ window.loadHistory = async function () {
 
         html += `
         <div class="record">
-            📅 ${data.date}<br>
-            ⚡ Price: ₱${data.pricePerKWH.toFixed(2)}<br>
-            🔌 Melissa: ${data.melissaKWH} kWh - ₱${data.melissaCost}<br>
-            🔌 Segundina: ${data.segKWH} kWh - ₱${data.segCost}
+    📅 ${data.date}<br>
+    🔢 Old Meter: ${data.newM}<br>
+    ⚡ Price: ₱${data.pricePerKWH.toFixed(2)}<br>
+    🔌 Melissa: ${data.melissaKWH} kWh - ₱${data.melissaCost}<br>
+    🔌 Segundina: ${data.segKWH} kWh - ₱${data.segCost}
         </div>`;
     });
 
