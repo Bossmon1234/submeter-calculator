@@ -1,109 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Sub Meter Billing System</title>
-
-<style>
-body {
-    font-family: Arial;
-    background: #f4f4f4;
-    padding: 20px;
-}
-
-.container {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    max-width: 750px;
-    margin: auto;
-}
-
-input {
-    width: 100%;
-    padding: 8px;
-    margin: 5px 0 10px;
-}
-
-button {
-    width: 100%;
-    padding: 10px;
-    background: green;
-    color: white;
-    border: none;
-    margin-top: 5px;
-    cursor: pointer;
-}
-
-.tabs button {
-    width: 33%;
-    background: #333;
-}
-
-.tab {
-    display: none;
-    margin-top: 15px;
-}
-
-.active {
-    display: block;
-}
-
-.record {
-    background: #e8f5e9;
-    padding: 8px;
-    margin: 5px 0;
-    border-radius: 5px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-<h2>Sub Meter Billing System</h2>
-
-<div class="tabs">
-<button onclick="openTab('calc')">Calculator</button>
-<button onclick="openTab('melissa')">Melissa History</button>
-<button onclick="openTab('segundina')">Segundina History</button>
-</div>
-
-<div id="calc" class="tab active">
-
-<h3>Main Bill</h3>
-<input id="totalKWH" type="number" placeholder="Total KWH Used">
-<input id="totalAmount" type="number" placeholder="Total Amount Due">
-
-<h3>Sub-meter Record</h3>
-<input id="oldM" type="number" placeholder="Old Meter">
-<input id="newM" type="number" placeholder="New Meter">
-
-<button onclick="calculate()">Calculate & Save</button>
-
-<div id="output"></div>
-</div>
-
-<div id="melissa" class="tab">
-<h3>Melissa Monthly History</h3>
-<div id="melissaHistory"></div>
-</div>
-
-<div id="segundina" class="tab">
-<h3>Segundina History</h3>
-<div id="segundinaHistory"></div>
-</div>
-
-</div>
-
-<script>
-function openTab(tab) {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.getElementById(tab).classList.add("active");
-}
-</script>
-
-<!-- 🔥 FIREBASE FULL FIX -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
@@ -125,21 +19,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let melissaData = [];
-let segundinaData = [];
-
-// 🔥 SAVE DATA
+// 🔥 SAVE DATA (SAFE VERSION)
 window.saveHistory = async function(data) {
     await addDoc(collection(db, "history"), data);
 };
 
-// 🔥 CALCULATE
+// 🔥 CALCULATE (FIXED + VALIDATION)
 window.calculate = async function() {
 
     let totalKWH = parseFloat(document.getElementById("totalKWH").value);
     let totalAmount = parseFloat(document.getElementById("totalAmount").value);
     let oldM = parseFloat(document.getElementById("oldM").value);
     let newM = parseFloat(document.getElementById("newM").value);
+
+    // ❗ VALIDATION (THIS FIXES "undefined")
+    if (isNaN(totalKWH) || isNaN(totalAmount) || isNaN(oldM) || isNaN(newM)) {
+        alert("Please fill all fields correctly!");
+        return;
+    }
 
     let date = new Date().toLocaleDateString();
 
@@ -152,12 +49,12 @@ window.calculate = async function() {
     let segCost = totalAmount - melissaCost;
 
     await saveHistory({
-        date,
-        pricePerKWH,
-        melissaKWH,
-        melissaCost,
-        segKWH,
-        segCost
+        date: date,
+        pricePerKWH: pricePerKWH,
+        melissaKWH: melissaKWH,
+        melissaCost: melissaCost,
+        segKWH: segKWH,
+        segCost: segCost
     });
 
     document.getElementById("output").innerHTML = `
@@ -169,42 +66,37 @@ window.calculate = async function() {
     loadHistory();
 };
 
-// 🔥 LOAD DATA (THIS FIXES PHONE/LAPTOP SYNC)
+// 🔥 LOAD DATA (SAFE DISPLAY)
 window.loadHistory = async function() {
 
     const snapshot = await getDocs(collection(db, "history"));
 
-    melissaData = [];
-    segundinaData = [];
+    let htmlMelissa = "";
+    let htmlSeg = "";
 
     snapshot.forEach(doc => {
         const d = doc.data();
 
-        melissaData.push(d);
-        segundinaData.push(d);
+        htmlMelissa += `
+            <div class="record">
+                📅 ${d.date || "no date"}<br>
+                ⚡ ${d.melissaKWH || 0} kWh<br>
+                💰 ₱${d.melissaCost || 0}
+            </div>
+        `;
+
+        htmlSeg += `
+            <div class="record">
+                📅 ${d.date || "no date"}<br>
+                ⚡ ${d.segKWH || 0} kWh<br>
+                💰 ₱${d.segCost || 0}
+            </div>
+        `;
     });
 
-    document.getElementById("melissaHistory").innerHTML =
-        melissaData.map(d => `
-            <div class="record">
-                📅 ${d.date}<br>
-                ⚡ ${d.melissaKWH} kWh<br>
-                💰 ₱${d.melissaCost}
-            </div>
-        `).join("");
-
-    document.getElementById("segundinaHistory").innerHTML =
-        segundinaData.map(d => `
-            <div class="record">
-                📅 ${d.date}<br>
-                ⚡ ${d.segKWH} kWh<br>
-                💰 ₱${d.segCost}
-            </div>
-        `).join("");
+    document.getElementById("melissaHistory").innerHTML = htmlMelissa;
+    document.getElementById("segundinaHistory").innerHTML = htmlSeg;
 };
 
 loadHistory();
 </script>
-
-</body>
-</html>
