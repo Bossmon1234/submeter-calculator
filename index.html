@@ -21,9 +21,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+let historyData = [];
+
 
 // =====================
-// SAVE DATA
+// SAVE
 // =====================
 window.saveHistory = async function(data) {
     await addDoc(collection(db, "history"), data);
@@ -74,47 +76,39 @@ window.calculate = async function() {
 
 
 // =====================
-// LOAD HISTORY (FIXED + DELETE BUTTON)
+// LOAD HISTORY (WITH DELETE BUTTON)
 // =====================
 window.loadHistory = async function() {
 
     const snapshot = await getDocs(collection(db, "history"));
 
-    let melissaHTML = "";
-    let segHTML = "";
+    historyData = [];
 
-    snapshot.forEach((d) => {
+    snapshot.forEach(d => {
         const data = d.data();
+        historyData.push({ ...data, id: d.id });
+    });
 
-        melissaHTML += `
+    let html = "";
+
+    historyData.forEach(d => {
+
+        html += `
             <div class="record">
-                📅 ${data.date || "no date"}<br>
-                ⚡ ${data.melissaKWH || 0} kWh<br>
-                💰 ₱${data.melissaCost || 0}<br><br>
+                📅 ${d.date}<br>
+                ⚡ Melissa: ${d.melissaKWH} kWh | ₱${d.melissaCost}<br>
+                ⚡ Segundina: ${d.segKWH} kWh | ₱${d.segCost}<br><br>
 
                 <button onclick="deleteRecord('${d.id}')"
-                style="background:red;color:white;padding:6px;border:none;border-radius:5px;">
-                Delete
-                </button>
-            </div>
-        `;
-
-        segHTML += `
-            <div class="record">
-                📅 ${data.date || "no date"}<br>
-                ⚡ ${data.segKWH || 0} kWh<br>
-                💰 ₱${data.segCost || 0}<br><br>
-
-                <button onclick="deleteRecord('${d.id}')"
-                style="background:red;color:white;padding:6px;border:none;border-radius:5px;">
-                Delete
+                style="background:red;color:white;border:none;padding:6px;border-radius:5px;">
+                    Delete (PIN required)
                 </button>
             </div>
         `;
     });
 
-    document.getElementById("melissaHistory").innerHTML = melissaHTML;
-    document.getElementById("segundinaHistory").innerHTML = segHTML;
+    document.getElementById("melissaHistory").innerHTML = html;
+    document.getElementById("segundinaHistory").innerHTML = html;
 };
 
 
@@ -126,7 +120,7 @@ window.deleteRecord = async function(id) {
     let pin = prompt("Enter PIN to delete:");
 
     if (pin !== "120402") {
-        alert("Wrong PIN! Access denied.");
+        alert("Wrong PIN!");
         return;
     }
 
