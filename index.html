@@ -19,12 +19,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 🔥 SAVE DATA (SAFE VERSION)
+// 🔥 SAVE DATA
 window.saveHistory = async function(data) {
     await addDoc(collection(db, "history"), data);
 };
 
-// 🔥 CALCULATE (FIXED + VALIDATION)
+// 🔥 CALCULATE
 window.calculate = async function() {
 
     let totalKWH = parseFloat(document.getElementById("totalKWH").value);
@@ -32,7 +32,6 @@ window.calculate = async function() {
     let oldM = parseFloat(document.getElementById("oldM").value);
     let newM = parseFloat(document.getElementById("newM").value);
 
-    // ❗ VALIDATION (THIS FIXES "undefined")
     if (isNaN(totalKWH) || isNaN(totalAmount) || isNaN(oldM) || isNaN(newM)) {
         alert("Please fill all fields correctly!");
         return;
@@ -49,12 +48,12 @@ window.calculate = async function() {
     let segCost = totalAmount - melissaCost;
 
     await saveHistory({
-        date: date,
-        pricePerKWH: pricePerKWH,
-        melissaKWH: melissaKWH,
-        melissaCost: melissaCost,
-        segKWH: segKWH,
-        segCost: segCost
+        date,
+        pricePerKWH,
+        melissaKWH,
+        melissaCost,
+        segKWH,
+        segCost
     });
 
     document.getElementById("output").innerHTML = `
@@ -66,7 +65,7 @@ window.calculate = async function() {
     loadHistory();
 };
 
-// 🔥 LOAD DATA (SAFE DISPLAY)
+// 🔥 LOAD DATA
 window.loadHistory = async function() {
 
     const snapshot = await getDocs(collection(db, "history"));
@@ -94,9 +93,17 @@ window.loadHistory = async function() {
         `;
     });
 
-    document.getElementById("melissaHistory").innerHTML = htmlMelissa;
-    document.getElementById("segundinaHistory").innerHTML = htmlSeg;
+    const melissaEl = document.getElementById("melissaHistory");
+    const segundinaEl = document.getElementById("segundinaHistory");
+
+    if (!melissaEl || !segundinaEl) return;
+
+    melissaEl.innerHTML = htmlMelissa;
+    segundinaEl.innerHTML = htmlSeg;
 };
 
-loadHistory();
+// ✅ FIX: wait for page to load before running
+window.addEventListener("DOMContentLoaded", () => {
+    loadHistory();
+});
 </script>
