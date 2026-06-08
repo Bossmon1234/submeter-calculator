@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sub Meter Billing System</title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f4f4f4;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    max-width: 750px;
+    margin: auto;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    margin: 5px 0 10px;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    background: green;
+    color: white;
+    border: none;
+    margin-top: 5px;
+}
+
+.tabs button {
+    width: 33%;
+    background: #333;
+}
+
+.tab {
+    display: none;
+    margin-top: 15px;
+}
+
+.active {
+    display: block;
+}
+
+.record {
+    background: #e8f5e9;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h2>Sub Meter Billing System</h2>
+
+<div class="tabs">
+<button onclick="openTab('calc')">Calculator</button>
+<button onclick="openTab('melissa')">Melissa History</button>
+<button onclick="openTab('segundina')">Segundina History</button>
+</div>
+
+<!-- CALCULATOR -->
+<div id="calc" class="tab active">
+
+<h3>Main Bill</h3>
+<input id="totalKWH" type="number" placeholder="Total KWH Used">
+<input id="totalAmount" type="number" placeholder="Total Amount Due">
+
+<h3>Sub-meter Record</h3>
+<input id="oldM" type="number" placeholder="Old Meter">
+<input id="newM" type="number" placeholder="New Meter">
+
+<button onclick="calculate()">Calculate & Save</button>
+
+<div id="output"></div>
+</div>
+
+<!-- MELISSA -->
+<div id="melissa" class="tab">
+<h3>Melissa Monthly History</h3>
+<div id="melissaHistory"></div>
+</div>
+
+<!-- SEGUNDINA -->
+<div id="segundina" class="tab">
+<h3>Segundina Monthly History</h3>
+<div id="segundinaHistory"></div>
+</div>
+
+</div>
+
+<script>
+
+const PIN = "120402";
+
+// DATA
+let melissaData = JSON.parse(localStorage.getItem("melissa")) || [];
+let segundinaData = JSON.parse(localStorage.getItem("segundina")) || [];
+
+function openTab(tab) {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.getElementById(tab).classList.add("active");
+}
+
+function calculate() {
+    let totalKWH = parseFloat(document.getElementById("totalKWH").value);
+    let totalAmount = parseFloat(document.getElementById("totalAmount").value);
+    let oldM = parseFloat(document.getElementById("oldM").value);
+    let newM = parseFloat(document.getElementById("newM").value);
+
+    let date = new Date().toLocaleDateString();
+
+    let pricePerKWH = totalAmount / totalKWH;
+
+    let melissaKWH = newM - oldM;
+    let melissaCost = melissaKWH * pricePerKWH;
+
+    let segKWH = totalKWH - melissaKWH;
+    let segCost = totalAmount - melissaCost;
+
+    melissaData.push({ date, kwh: melissaKWH, cost: melissaCost });
+    segundinaData.push({ date, kwh: segKWH, cost: segCost });
+
+    localStorage.setItem("melissa", JSON.stringify(melissaData));
+    localStorage.setItem("segundina", JSON.stringify(segundinaData));
+
+    document.getElementById("output").innerHTML = `
+        <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
+        <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
+        <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
+    `;
+
+    renderHistory();
+}
+
+// DELETE WITH PIN
+function deleteRecord(type, index) {
+    let pin = prompt("Enter PIN to delete:");
+
+    if (pin !== PIN) {
+        alert("Wrong PIN! Access denied.");
+        return;
+    }
+
+    if (type === "melissa") {
+        melissaData.splice(index, 1);
+        localStorage.setItem("melissa", JSON.stringify(melissaData));
+    } else {
+        segundinaData.splice(index, 1);
+        localStorage.setItem("segundina", JSON.stringify(segundinaData));
+    }
+
+    renderHistory();
+}
+
+// HISTORY
+function renderHistory() {
+
+    document.getElementById("melissaHistory").innerHTML =
+        melissaData.map((d, i) => `
+            <div class="record">
+                📅 ${d.date} <br>
+                ⚡ ${d.kwh.toFixed(2)} kWh <br>
+                💰 ₱${d.cost.toFixed(2)} <br>
+                <button onclick="deleteRecord('melissa', ${i})">Delete</button>
+            </div>
+        `).join("");
+
+    document.getElementById("segundinaHistory").innerHTML =
+        segundinaData.map((d, i) => `
+            <div class="record">
+                📅 ${d.date} <br>
+                ⚡ ${d.kwh.toFixed(2)} kWh <br>
+                💰 ₱${d.cost.toFixed(2)} <br>
+                <button onclick="deleteRecord('segundina', ${i})">Delete</button>
+            </div>
+        `).join("");
+}
+
+renderHistory();
+
+</script>
+
+</body>
+</html>
