@@ -1,14 +1,11 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    getDocs,
-    deleteDoc,
+import {
+    getFirestore,
     doc,
-    query,
-    where
+    setDoc,
+    getDoc,
+    deleteDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -23,41 +20,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ========================
-// SAVE HISTORY (WITH MONTH LIMIT)
-// ========================
-window.saveHistory = async function(data) {
+function monthKey() {
+    return new Date().toISOString().slice(0, 7);
+}
 
-    // get month key (YYYY-MM)
-    const monthKey = new Date().toISOString().slice(0, 7);
-
-    // check if already exists
-    const q = query(collection(db, "history"), where("monthKey", "==", monthKey));
-    const snap = await getDocs(q);
-
-    if (!snap.empty) {
-        alert("You already have a record for this month!");
-        return;
-    }
-
-    await addDoc(collection(db, "history"), {
-        ...data,
-        monthKey
-    });
-};
-
-// ========================
-// CALCULATE
-// ========================
-window.calculate = async function() {
+// =======================
+// CALCULATE + SAVE STRUCTURED DATA
+// =======================
+window.calculate = async function () {
 
     let totalKWH = parseFloat(document.getElementById("totalKWH").value);
     let totalAmount = parseFloat(document.getElementById("totalAmount").value);
     let oldM = parseFloat(document.getElementById("oldM").value);
     let newM = parseFloat(document.getElementById("newM").value);
 
-    let date = new Date().toLocaleDateString();
-    let monthKey = new Date().toISOString().slice(0, 7);
+    if (!totalKWH || !totalAmount || !oldM || !newM) {
+        alert("Fill all fields");
+        return;
+    }
 
     let pricePerKWH = totalAmount / totalKWH;
 
@@ -67,14 +47,20 @@ window.calculate = async function() {
     let segKWH = totalKWH - melissaKWH;
     let segCost = totalAmount - melissaCost;
 
-    await addDoc(collection(db, "history"), {
-        date,
-        monthKey,
+    const month = monthKey();
+
+    // SAVE STRUCTURED BY MONTH
+    await setDoc(doc(db, "history", month), {
+        month,
         pricePerKWH,
-        melissaKWH,
-        melissaCost,
-        segKWH,
-        segCost
+        melissa: {
+            kwh: melissaKWH,
+            cost: melissaCost
+        },
+        segundina: {
+            kwh: segKWH,
+            cost: segCost
+        }
     });
 
     document.getElementById("output").innerHTML = `
@@ -86,49 +72,48 @@ window.calculate = async function() {
     loadHistory();
 };
 
-// ========================
-// DELETE (UNDO)
-// ========================
-window.deleteRecord = async function(id) {
-    await deleteDoc(doc(db, "history", id));
-    loadHistory();
+// =======================
+// LOAD DATA (CLEAN + STRUCTURED)
+// =======================
+window.loadHistory = async function () {
+
+    const month = monthKey();
+    const snap = await getDoc(doc(db, "history", month));
+
+    let mHTML = "";
+    let sHTML = "";
+
+    if (snap.exists()) {
+        const d = snap.data();
+
+        mHTML = `
+        <div class="record">
+            📅 ${d.month}<br>
+            ⚡ ${d.melissa.kwh} kWh<br>
+            💰 ₱${d.melissa.cost}<br>
+            <button onclick="undo()">Undo</button>
+        </div>`;
+
+        sHTML = `
+        <div class="record">
+            📅 ${d.month}<br>
+            ⚡ ${d.segundina.kwh} kWh<br>
+            💰 ₱${d.segundina.cost}<br>
+            <button onclick="undo()">Undo</button>
+        </div>`;
+    }
+
+    document.getElementById("melissaHistory").innerHTML = mHTML;
+    document.getElementById("segundinaHistory").innerHTML = sHTML;
 };
 
-// ========================
-// LOAD HISTORY
-// ========================
-window.loadHistory = async function() {
-
-    const snapshot = await getDocs(collection(db, "history"));
-
-    let melissaHTML = "";
-    let segundinaHTML = "";
-
-    snapshot.forEach(docSnap => {
-        const d = docSnap.data();
-        const id = docSnap.id;
-
-        melissaHTML += `
-            <div class="record">
-                📅 ${d.date}<br>
-                ⚡ ${d.melissaKWH} kWh<br>
-                💰 ₱${d.melissaCost}<br>
-                <button onclick="deleteRecord('${id}')" style="background:red;">Undo</button>
-            </div>
-        `;
-
-        segundinaHTML += `
-            <div class="record">
-                📅 ${d.date}<br>
-                ⚡ ${d.segKWH} kWh<br>
-                💰 ₱${d.segCost}<br>
-                <button onclick="deleteRecord('${id}')" style="background:red;">Undo</button>
-            </div>
-        `;
-    });
-
-    document.getElementById("melissaHistory").innerHTML = melissaHTML;
-    document.getElementById("segundinaHistory").innerHTML = segundinaHTML;
+// =======================
+// UNDO (DELETE MONTH DATA)
+// =======================
+window.undo = async function () {
+    const month = monthKey();
+    await deleteDoc(doc(db, "history", month));
+    loadHistory();
 };
 
 loadHistory();
