@@ -1,12 +1,7 @@
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    getDocs 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
+<script>
 const firebaseConfig = {
     apiKey: "AIzaSyCQXv0_MS3aSt0eAVjF7K0197eCrigb0is",
     authDomain: "sub-meter-calculator-6875f.firebaseapp.com",
@@ -16,12 +11,13 @@ const firebaseConfig = {
     appId: "1:1096909978301:web:41195a8b49133cadba15d4"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// 🔥 INIT FIREBASE (COMPAT MODE)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // 🔥 SAVE DATA
 window.saveHistory = async function(data) {
-    await addDoc(collection(db, "history"), data);
+    await db.collection("history").add(data);
 };
 
 // 🔥 CALCULATE
@@ -65,10 +61,10 @@ window.calculate = async function() {
     loadHistory();
 };
 
-// 🔥 LOAD DATA
+// 🔥 LOAD DATA (SAFE)
 window.loadHistory = async function() {
 
-    const snapshot = await getDocs(collection(db, "history"));
+    const snapshot = await db.collection("history").get();
 
     let htmlMelissa = "";
     let htmlSeg = "";
@@ -93,16 +89,11 @@ window.loadHistory = async function() {
         `;
     });
 
-    const melissaEl = document.getElementById("melissaHistory");
-    const segundinaEl = document.getElementById("segundinaHistory");
-
-    if (!melissaEl || !segundinaEl) return;
-
-    melissaEl.innerHTML = htmlMelissa;
-    segundinaEl.innerHTML = htmlSeg;
+    document.getElementById("melissaHistory").innerHTML = htmlMelissa;
+    document.getElementById("segundinaHistory").innerHTML = htmlSeg;
 };
 
-// ✅ FIX: wait for page to load before running
+// ✅ SAFE LOAD AFTER PAGE IS READY
 window.addEventListener("DOMContentLoaded", () => {
     loadHistory();
 });
