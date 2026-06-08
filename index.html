@@ -239,14 +239,16 @@ window.calculate = async function () {
     };
 
     async function saveData() {
-        await addDoc(collection(db, "history"), {
-            date,
-            pricePerKWH,
-            melissaKWH,
-            melissaCost,
-            segKWH,
-            segCost
-        });
+await addDoc(collection(db, "history"), {
+    date: date,
+    oldM: oldM,
+    newM: newM,
+    pricePerKWH: pricePerKWH,
+    melissaKWH: melissaKWH,
+    melissaCost: melissaCost,
+    segKWH: segKWH,
+    segCost: segCost
+});
 
         loadHistory();
     }
