@@ -2,99 +2,27 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
+console.log("SCRIPT LOADED");
+
 const firebaseConfig = {
-    apiKey: "AIzaSyCQXv0_MS3aSt0eAVjF7K0197eCrigb0is",
-    authDomain: "sub-meter-calculator-6875f.firebaseapp.com",
-    projectId: "sub-meter-calculator-6875f",
-    storageBucket: "sub-meter-calculator-6875f.appspot.com",
-    messagingSenderId: "1096909978301",
-    appId: "1:1096909978301:web:41195a8b49133cadba15d4"
+  apiKey: "AIzaSyCQXv0_MS3aSt0eAVjF7K0197eCrigb0is",
+  authDomain: "sub-meter-calculator-6875f.firebaseapp.com",
+  projectId: "sub-meter-calculator-6875f",
 };
 
-// 🔥 INIT FIREBASE (COMPAT MODE)
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 🔥 SAVE DATA
-window.saveHistory = async function(data) {
-    await db.collection("history").add(data);
+window.loadHistory = async function () {
+  console.log("LOAD HISTORY RUNNING");
+
+  const snapshot = await db.collection("history").get();
+
+  document.getElementById("melissaHistory").innerHTML =
+    "TEST OK: " + snapshot.size;
 };
 
-// 🔥 CALCULATE
-window.calculate = async function() {
-
-    let totalKWH = parseFloat(document.getElementById("totalKWH").value);
-    let totalAmount = parseFloat(document.getElementById("totalAmount").value);
-    let oldM = parseFloat(document.getElementById("oldM").value);
-    let newM = parseFloat(document.getElementById("newM").value);
-
-    if (isNaN(totalKWH) || isNaN(totalAmount) || isNaN(oldM) || isNaN(newM)) {
-        alert("Please fill all fields correctly!");
-        return;
-    }
-
-    let date = new Date().toLocaleDateString();
-
-    let pricePerKWH = totalAmount / totalKWH;
-
-    let melissaKWH = newM - oldM;
-    let melissaCost = melissaKWH * pricePerKWH;
-
-    let segKWH = totalKWH - melissaKWH;
-    let segCost = totalAmount - melissaCost;
-
-    await saveHistory({
-        date,
-        pricePerKWH,
-        melissaKWH,
-        melissaCost,
-        segKWH,
-        segCost
-    });
-
-    document.getElementById("output").innerHTML = `
-        <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
-        <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
-        <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
-    `;
-
-    loadHistory();
-};
-
-// 🔥 LOAD DATA (SAFE)
-window.loadHistory = async function() {
-
-    const snapshot = await db.collection("history").get();
-
-    let htmlMelissa = "";
-    let htmlSeg = "";
-
-    snapshot.forEach(doc => {
-        const d = doc.data();
-
-        htmlMelissa += `
-            <div class="record">
-                📅 ${d.date || "no date"}<br>
-                ⚡ ${d.melissaKWH || 0} kWh<br>
-                💰 ₱${d.melissaCost || 0}
-            </div>
-        `;
-
-        htmlSeg += `
-            <div class="record">
-                📅 ${d.date || "no date"}<br>
-                ⚡ ${d.segKWH || 0} kWh<br>
-                💰 ₱${d.segCost || 0}
-            </div>
-        `;
-    });
-
-    document.getElementById("melissaHistory").innerHTML = htmlMelissa;
-    document.getElementById("segundinaHistory").innerHTML = htmlSeg;
-};
-
-// ✅ SAFE LOAD AFTER PAGE IS READY
 window.addEventListener("DOMContentLoaded", () => {
-    loadHistory();
+  loadHistory();
 });
 </script>
