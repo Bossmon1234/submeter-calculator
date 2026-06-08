@@ -89,7 +89,7 @@ button {
 </div>
 
 <div id="melissa" class="tab">
-<h3>Melissa Monthly History</h3>
+<h3>Melissa History</h3>
 <div id="melissaHistory"></div>
 </div>
 
@@ -129,7 +129,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// OPEN TABS
+// TAB
 window.openTab = function(tab) {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     document.getElementById(tab).classList.add("active");
@@ -164,7 +164,7 @@ window.loadHistory = async function () {
     document.getElementById("segundinaHistory").innerHTML = s;
 };
 
-// MAIN CALCULATE + 20s UNDO
+// MAIN CALCULATION + UNDO SYSTEM
 window.calculate = async function() {
 
     let totalKWH = parseFloat(document.getElementById("totalKWH").value);
@@ -176,20 +176,20 @@ window.calculate = async function() {
 
     let pricePerKWH = totalAmount / totalKWH;
 
-    let melissaKWH = newM - oldM;
+    // ✅ FIX: ALWAYS POSITIVE
+    let melissaKWH = Math.abs(newM - oldM);
     let melissaCost = melissaKWH * pricePerKWH;
 
-    let segKWH = totalKWH - melissaKWH;
+    let segKWH = Math.abs(totalKWH - melissaKWH);
     let segCost = totalAmount - melissaCost;
 
-    // SHOW RESULT FIRST
     document.getElementById("output").innerHTML = `
         <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
         <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
         <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
     `;
 
-    // UNDO SYSTEM
+    // UNDO TIMER
     let countdown = 20;
     let saved = false;
 
@@ -201,7 +201,6 @@ window.calculate = async function() {
 
     const timer = setInterval(() => {
         countdown--;
-
         document.getElementById("undoBtn").innerText = `UNDO (${countdown})`;
 
         if (countdown <= 0) {
