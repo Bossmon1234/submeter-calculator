@@ -4,9 +4,6 @@
 <title>Sub Meter Billing System</title>
 
 <style>
-/* =========================
-   THEME VARIABLES
-========================= */
 :root {
     --bg: #000814;
     --text: white;
@@ -15,7 +12,6 @@
     --input: #0d1424;
 }
 
-/* LIGHT MODE */
 .light-mode {
     --bg: #f4f6ff;
     --text: #111;
@@ -33,7 +29,6 @@ body {
     transition: 0.3s;
 }
 
-/* lightning background */
 body::before {
     content: "";
     position: fixed;
@@ -58,7 +53,6 @@ body::before {
     padding: 20px;
     border-radius: 12px;
     box-shadow: 0 0 20px rgba(0,180,255,0.3);
-    transition: 0.3s;
 }
 
 h2 {
@@ -70,22 +64,6 @@ h3 {
     color: var(--accent);
     border-left: 4px solid var(--accent);
     padding-left: 8px;
-}
-
-/* ✅ ADDED ONLY (NO CHANGES TO YOUR ORIGINAL CSS) */
-h3::after {
-    content: "";
-    display: block;
-    height: 2px;
-    width: 100%;
-    margin-top: 5px;
-    background: var(--accent);
-    opacity: 0.3;
-}
-
-/* optional improvement ONLY */
-h2 {
-    text-align: center;
 }
 
 input {
@@ -117,7 +95,6 @@ button {
     border-left: 3px solid var(--accent);
 }
 
-/* toggle button */
 .toggle {
     position: fixed;
     top: 10px;
@@ -164,6 +141,149 @@ button {
 <div id="history"></div>
 
 </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs } 
+from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCQXv0_MS3aSt0eAVjF7K0197eCrigb0is",
+    authDomain: "sub-meter-calculator-6875f.firebaseapp.com",
+    projectId: "sub-meter-calculator-6875f",
+    storageBucket: "sub-meter-calculator-6875f.appspot.com",
+    messagingSenderId: "1096909978301",
+    appId: "1:1096909978301:web:41195a8b49133cadba15d4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* LOAD HISTORY */
+window.loadHistory = async function () {
+    const snap = await getDocs(collection(db, "history"));
+
+    let html = "";
+
+    snap.forEach(d => {
+        const data = d.data();
+
+        html += `
+<div class="record">
+📅 ${data.date}<br>
+⚡ Price: ₱${data.pricePerKWH.toFixed(2)}<br>
+🔌 Melissa: ${data.melissaKWH} - ₱${data.melissaCost}<br>
+🔌 Mark: ${data.markKWH} - ₱${data.markCost}<br>
+🔢 New Meter (Melissa): ${data.newMelissa ?? "N/A"}<br>
+🔢 New Meter (Mark): ${data.newMark ?? "N/A"}<br>
+🔌 Segundina: ${data.segKWH} - ₱${data.segCost}
+</div>`;
+    });
+
+    document.getElementById("history").innerHTML = html;
+};
+
+/* CALCULATE */
+window.calculate = async function () {
+
+    let totalKWH = parseFloat(document.getElementById("totalKWH").value);
+    let totalAmount = parseFloat(document.getElementById("totalAmount").value);
+    let oldM = parseFloat(document.getElementById("oldM").value);
+    let newM = parseFloat(document.getElementById("newM").value);
+    let oldMark = parseFloat(document.getElementById("oldMark").value);
+    let newMark = parseFloat(document.getElementById("newMark").value);
+
+    let date = new Date().toLocaleDateString();
+    let pricePerKWH = totalAmount / totalKWH;
+
+    let melissaKWH = Math.abs(newM - oldM);
+    let melissaCost = melissaKWH * pricePerKWH;
+
+    let markKWH = 0;
+    let markCost = 0;
+
+    if (!isNaN(oldMark) && !isNaN(newMark)) {
+        markKWH = Math.abs(newMark - oldMark);
+        markCost = markKWH * pricePerKWH;
+    }
+
+    let usedKWH = melissaKWH + markKWH;
+
+    if (usedKWH > totalKWH) {
+        alert("Error: Sub-meters exceed total KWH!");
+        return;
+    }
+
+    let segKWH = totalKWH - usedKWH;
+    let segCost = totalAmount - (melissaCost + markCost);
+
+    document.getElementById("output").innerHTML = `
+        <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
+        <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
+        <b>Mark:</b> ${markKWH.toFixed(2)} kWh - ₱${markCost.toFixed(2)}<br>
+        <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
+    `;
+
+    /* =========================
+       ⏳ 5-SECOND SAVE / DELETE FEATURE (ADDED ONLY)
+    ========================= */
+
+    let countdown = 5;
+    let saved = false;
+
+    document.getElementById("undoBox").innerHTML = `
+        <button id="saveBtn" style="background:green;">SAVE (${countdown})</button>
+        <button id="deleteBtn" style="background:red;">DELETE</button>
+    `;
+
+    const timer = setInterval(() => {
+        countdown--;
+        const btn = document.getElementById("saveBtn");
+        if (btn) btn.innerText = `SAVE (${countdown})`;
+
+        if (countdown <= 0) {
+            clearInterval(timer);
+            if (!saved) {
+                document.getElementById("undoBox").innerHTML = "❌ NOT SAVED";
+            }
+        }
+    }, 1000);
+
+    document.getElementById("saveBtn").onclick = async () => {
+        saved = true;
+        clearInterval(timer);
+
+        await addDoc(collection(db, "history"), {
+            date,
+            pricePerKWH,
+            melissaKWH,
+            melissaCost,
+            markKWH,
+            markCost,
+            segKWH,
+            segCost,
+            newMelissa: newM,
+            newMark: newMark
+        });
+
+        document.getElementById("undoBox").innerHTML = "✅ SAVED";
+        loadHistory();
+    };
+
+    document.getElementById("deleteBtn").onclick = () => {
+        saved = false;
+        clearInterval(timer);
+        document.getElementById("undoBox").innerHTML = "🗑️ DELETED (NOT SAVED)";
+    };
+};
+
+/* THEME */
+window.toggleMode = function () {
+    document.body.classList.toggle("light-mode");
+};
+
+loadHistory();
+</script>
 
 </body>
 </html>
