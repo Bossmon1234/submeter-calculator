@@ -131,8 +131,12 @@ button {
 <input id="totalAmount" type="number" step="any" placeholder="Total Amount Due" required min="0">
 
 <h3>Sub-Meter Record</h3>
-<input id="oldM" type="number" step="any" placeholder="Old Meter" required min="0">
-<input id="newM" type="number" step="any" placeholder="New Meter" required min="0">
+<input id="oldM" type="number" step="any" placeholder="Old Meter (Melissa)" required min="0">
+<input id="newM" type="number" step="any" placeholder="New Meter (Melissa)" required min="0">
+
+<!-- ✅ ADDED MARK (NO UI CHANGE STYLE) -->
+<input id="oldMark" type="number" step="any" placeholder="Old Meter (Mark)" required min="0">
+<input id="newMark" type="number" step="any" placeholder="New Meter (Mark)" required min="0">
 
 <button type="submit">Calculate & Save</button>
 
@@ -182,6 +186,7 @@ window.loadHistory = async function () {
 📅 ${data.date}<br>
 ⚡ Price: ₱${data.pricePerKWH.toFixed(2)}<br>
 🔌 Melissa: ${data.melissaKWH} - ₱${data.melissaCost}<br>
+🔌 Mark: ${data.markKWH} - ₱${data.markCost}<br>
 🔌 Segundina: ${data.segKWH} - ₱${data.segCost}
 </div>`;
     });
@@ -197,59 +202,49 @@ window.calculate = async function () {
     let oldM = parseFloat(document.getElementById("oldM").value);
     let newM = parseFloat(document.getElementById("newM").value);
 
+    // ✅ MARK INPUT
+    let oldMark = parseFloat(document.getElementById("oldMark").value);
+    let newMark = parseFloat(document.getElementById("newMark").value);
+
     let date = new Date().toLocaleDateString();
     let pricePerKWH = totalAmount / totalKWH;
 
     let melissaKWH = Math.abs(newM - oldM);
     let melissaCost = melissaKWH * pricePerKWH;
 
-    let segKWH = Math.abs(totalKWH - melissaKWH);
-    let segCost = totalAmount - melissaCost;
+    // ✅ MARK COMPUTATION
+    let markKWH = Math.abs(newMark - oldMark);
+    let markCost = markKWH * pricePerKWH;
+
+    let usedKWH = melissaKWH + markKWH;
+
+    if (usedKWH > totalKWH) {
+        alert("Error: Sub-meters exceed total KWH!");
+        return;
+    }
+
+    let segKWH = totalKWH - usedKWH;
+    let segCost = totalAmount - (melissaCost + markCost);
 
     document.getElementById("output").innerHTML = `
         <b>Price per KWH:</b> ₱${pricePerKWH.toFixed(2)}<br><br>
         <b>Melissa:</b> ${melissaKWH.toFixed(2)} kWh - ₱${melissaCost.toFixed(2)}<br>
+        <b>Mark:</b> ${markKWH.toFixed(2)} kWh - ₱${markCost.toFixed(2)}<br>
         <b>Segundina:</b> ${segKWH.toFixed(2)} kWh - ₱${segCost.toFixed(2)}
     `;
 
-    let countdown = 10;
-    let saved = false;
+    await addDoc(collection(db, "history"), {
+        date: date,
+        pricePerKWH: pricePerKWH,
+        melissaKWH: melissaKWH,
+        melissaCost: melissaCost,
+        markKWH: markKWH,
+        markCost: markCost,
+        segKWH: segKWH,
+        segCost: segCost
+    });
 
-    document.getElementById("undoBox").innerHTML = `
-        <button id="undoBtn" style="background:red;">UNDO (${countdown})</button>
-    `;
-
-    const timer = setInterval(() => {
-        countdown--;
-        document.getElementById("undoBtn").innerText = `UNDO (${countdown})`;
-
-        if (countdown <= 0) {
-            clearInterval(timer);
-            if (!saved) saveData();
-            document.getElementById("undoBox").innerHTML = "";
-        }
-    }, 1000);
-
-    document.getElementById("undoBtn").onclick = () => {
-        saved = true;
-        clearInterval(timer);
-        document.getElementById("undoBox").innerHTML = "❌ Cancelled";
-    };
-
-    async function saveData() {
-await addDoc(collection(db, "history"), {
-    date: date,
-    oldM: oldM,
-    newM: newM,
-    pricePerKWH: pricePerKWH,
-    melissaKWH: melissaKWH,
-    melissaCost: melissaCost,
-    segKWH: segKWH,
-    segCost: segCost
-});
-
-        loadHistory();
-    }
+    loadHistory();
 };
 
 /* THEME TOGGLE */
