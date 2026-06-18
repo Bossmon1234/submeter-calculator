@@ -119,14 +119,16 @@ button {
 
 <form onsubmit="calculate(); return false;">
 
-<h3>Main Bill</h3>
+<h3>Main Meter</h3>
 <input id="totalKWH" type="number" step="any" placeholder="Total KWH Used" required min="0">
 <input id="totalAmount" type="number" step="any" placeholder="Total Amount Due" required min="0">
 
 <h3>Sub-Meter Record</h3>
 <input id="oldM" type="number" step="any" placeholder="Old Meter (Melissa)" required min="0">
 <input id="newM" type="number" step="any" placeholder="New Meter (Melissa)" required min="0">
-
+    
+<hr class="separator">
+    
 <input id="oldMark" type="number" step="any" placeholder="Old Meter (Mark)" min="0">
 <input id="newMark" type="number" step="any" placeholder="New Meter (Mark)" min="0">
 
